@@ -173,7 +173,7 @@ jobs:
         target: ${{ matrix.job.target }}
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
-    - run: cargo install cargo-bump
+    - run: cargo install cargo-release
     - name: "Bump version into cargo.toml"
       run: cargo-release release version ${{ needs.version.outputs.version }}
     - name: Build
