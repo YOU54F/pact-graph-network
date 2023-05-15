@@ -40,7 +40,7 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@v1
       - name: check
-        run: cargo run check
+        run: cargo check
   lints:
     name: "💅 lints"
     runs-on: ubuntu-latest
