@@ -168,7 +168,7 @@ jobs:
         echo "REPOSITORY_NAME=${REPOSITORY_NAME}" >> $GITHUB_OUTPUT
       shell: bash
     - name: Install Rust Toolchain Components
-      uses: dtolnay/rust-toolchain
+      uses: dtolnay/rust-toolchain@stable
       with:
         target: ${{ matrix.job.target }}
         toolchain: stable
