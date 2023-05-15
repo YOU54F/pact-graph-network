@@ -1,0 +1,250 @@
+name: CICD
+
+on:
+  pull_request:
+    branches:
+    - '*'
+  push:
+    branches:
+    - main
+
+jobs:
+  version:
+    name: "🧮 Compute the version"
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_next_version.outputs.version }}
+      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        lfs: true
+        fetch-depth: 0
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Get next version
+      id: get_next_version
+      uses: thenativeweb/get-next-version@main
+    - name: print
+      run: |
+        echo "version: ${{ steps.get_next_version.outputs.version }}"
+        echo "has_next_version: ${{ steps.get_next_version.outputs.hasNextVersion }}"
+  check:
+    name: "🔍 checks"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust Toolchain Components
+        uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v1
+      - name: check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+  lints:
+    name: "💅 lints"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust Toolchain Components
+        uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v1
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all --all-targets -- -D warnings
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+  tests:
+    name: "⚙️ Run unit-tests"
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust Toolchain Components
+        uses: actions-rs/toolchain@v1
+        with:
+          components: clippy, rustfmt
+          override: true
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v1
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: "--all"
+      - name: Show help
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: "-- -h"
+  changelog:
+    if: needs.version.outputs.hasNextVersion == 'true'
+    needs:
+      - version
+    name: ✍️ Generate changelog
+    runs-on: ubuntu-latest
+    outputs:
+      content: ${{steps.git-cliff.outputs.content}}
+      release_body: ${{ steps.git-cliff-changes.outputs.content }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: git tag "v${{needs.version.outputs.version}}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v1
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff.outputs.content }}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v1
+        id: git-cliff-changes
+        with:
+          config: cliff.toml
+          args: -vv --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff-changes.outputs.content }}"
+  build:
+    name: "🛠️ Build binaries"
+    if: needs.version.outputs.hasNextVersion == 'true'
+    needs:
+      - version
+      - tests
+      - lints
+      - check
+    strategy:
+      matrix:
+        job:
+          - { target: x86_64-apple-darwin      , suffix: ""  , os: macos-latest                   }
+          - { target: x86_64-unknown-linux-gnu , suffix: ""    , os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-unknown-linux-musl , suffix: ""    , os: ubuntu-latest, use-cross: true }
+    runs-on: ${{matrix.job.os}}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+          lfs: true
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+    - name: "Get Repository name"
+      id: get_repository_name
+      run: |
+        REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
+        echo "REPOSITORY_NAME=${REPOSITORY_NAME}" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Install Rust Toolchain Components
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        target: ${{ matrix.job.target }}
+        toolchain: stable
+        override: true
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/install@v0.1
+      with:
+        crate: cargo-bump
+        version: latest
+    - name: "Bump version into cargo.toml"
+      run: cargo bump ${{ needs.version.outputs.version }}
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: ${{ matrix.job.use-cross }}
+        command: build
+        args: --bin pact-graph-network${{ matrix.job.suffix }} --release --target=${{ matrix.job.target }}
+    - name: Create dist
+      id: dist
+      shell: bash
+      run: |
+        EXECUTABLE="target/${{ matrix.job.target }}/release/pact-graph-network${{ matrix.job.suffix }}"
+        BINARY_NAME="pact-graph-network_${{ matrix.job.target }}${{ matrix.job.suffix }}"
+        BINARY_PATH="dist/${BINARY_NAME}"
+        mkdir -p "dist/"
+        # Binary
+        cp "${EXECUTABLE}" "${BINARY_PATH}"
+        echo "BINARY_NAME=${BINARY_NAME}" >> $GITHUB_OUTPUT
+        echo "BINARY_PATH=${BINARY_PATH}" >> $GITHUB_OUTPUT
+    - uses: actions/upload-artifact@master
+      with:
+        name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-${{ matrix.job.target }}
+        path: dist/
+
+  release:
+    name: "📦 Github release"
+    if: |
+      github.ref == 'refs/heads/main' &&
+      needs.version.outputs.hasNextVersion == 'true'
+    needs:
+      - version
+      - changelog
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      discussions: write
+    steps:
+      - uses: actions/checkout@v3
+      - id: get_repository_name
+        run: |
+          REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}' | sed -e "s/:refs//")
+          echo "REPOSITORY_NAME=${REPOSITORY_NAME}" >> $GITHUB_OUTPUT
+        shell: bash
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-gnu
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-apple-darwin
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v1
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-bump
+          version: latest
+      - name: "Bump version into cargo.toml"
+        run: cargo bump ${{ needs.version.outputs.version }}
+      - name: check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: "Write changelog"
+        run: echo "${{ needs.changelog.outputs.content }}" > CHANGELOG.md
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore(release): prepare for v${{ needs.version.outputs.version }}"
+          branch: ${{ github.head_ref }}
+          file_pattern: 'Cargo.* CHANGELOG.md'
+      - name: Publish archives and packages
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: 'v${{ needs.version.outputs.version }}'
+          name: 'Release v${{ needs.version.outputs.version }}'
+          generate_release_notes: false
+          body: "${{ needs.changelog.outputs.release_body }}"
+          files: |
+            pact-graph-network*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
