@@ -38,7 +38,7 @@ jobs:
         with:
           components: clippy, rustfmt
           toolchain: stable
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: check
         run: cargo check
   lints:
@@ -177,11 +177,20 @@ jobs:
     - name: "Bump version into cargo.toml"
       run: cargo-release release version ${{ needs.version.outputs.version }}
     - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: ${{ matrix.job.use-cross }}
-        command: build
-        args: --bin pact-graph-network${{ matrix.job.suffix }} --release --target=${{ matrix.job.target }}
+      if: ${{ matrix.job.use-cross != true }}
+      run: | # https://github.com/rust-lang/rustup/issues/2612#issuecomment-1433876793
+        if [[ ${{ matrix.job.target }} == "aarch64-pc-windows-msvc" ]]; then
+          echo "ring override for aarch64-pc-windows-msvc"
+          echo [patch.crates-io] >> cargo.toml
+          echo ring = { git = \"https://github.com/awakecoding/ring\", branch = \"0.16.20_alpha\" } >> cargo.toml
+          cargo update
+        fi
+        cargo build --bin pact-graph-network${{ matrix.job.suffix }} --release --target=${{ matrix.job.target }}
+    - name: Build
+      if: ${{ matrix.job.use-cross == true }}
+      run: | # Install latest cross for android targets
+        cargo install cross --git https://github.com/cross-rs/cross
+        cross build --bin pact-graph-network${{ matrix.job.suffix }} --release --target=${{ matrix.job.target }}
     - name: Create dist
       id: dist
       shell: bash
@@ -228,7 +237,7 @@ jobs:
       - uses: actions/download-artifact@master
         with:
           name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-musl
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-release
       - name: "Bump version into cargo.toml"
         run: cargo-release bump ${{ needs.version.outputs.version }}
@@ -242,7 +251,7 @@ jobs:
           branch: ${{ github.head_ref }}
           file_pattern: 'Cargo.* CHANGELOG.md'
       - name: Publish archives and packages
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@master
         with:
           tag_name: 'v${{ needs.version.outputs.version }}'
           name: 'Release v${{ needs.version.outputs.version }}'
