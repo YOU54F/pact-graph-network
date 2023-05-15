@@ -175,7 +175,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2
     - run: cargo install cargo-bump
     - name: "Bump version into cargo.toml"
-      run: cargo bump ${{ needs.version.outputs.version }}
+      run: cargo-release release version ${{ needs.version.outputs.version }}
     - name: Build
       uses: actions-rs/cargo@v1
       with:
