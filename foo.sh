@@ -1,0 +1,1 @@
+gh release view --repo $REPO $tag --json assets -q '.assets[].name' | grep osx

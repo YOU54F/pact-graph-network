@@ -114,6 +114,9 @@ jobs:
   build:
     name: "🛠️ Build binaries"
     if: needs.version.outputs.hasNextVersion == 'true'
+    defaults:
+      run:
+        shell: bash
     needs:
       - version
       - tests
