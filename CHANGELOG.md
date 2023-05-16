@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2023-05-16
+
+### Bug Fixes
+
+- Set url short flag to -b so username can be -u as per pact broker client
+
+### Features
+
+- Basic auth and token based auth via cli
+
+### Miscellaneous Tasks
+
+- Version 0.8.0
+- Version 0.8.0
+- Version 0.8.1
+
+### Refactor
+
+- Separates brocker cli in specific lib
+
+### Ci
+
+- Fix cargo-bump with cargo-release and create more targets
+- Add tag
+- Cargo check:
+- Cargo release:
+- Cargo release:
+- Ring 16.20_alpha for aarch64-pc-windows-msvc + latest cross for android:
+- Default bash shell for windows runners:
+
 ## [0.7.2] - 2022-12-14
 
 ### Bug Fixes
