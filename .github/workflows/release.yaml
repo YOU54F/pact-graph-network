@@ -14,8 +14,8 @@ jobs:
     name: "🧮 Compute the version"
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_next_version.outputs.version }}
-      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
+      version: 0.8.2
+      hasNextVersion: true
     steps:
     - uses: actions/checkout@v3
       with:
