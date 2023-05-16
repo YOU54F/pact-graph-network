@@ -2,20 +2,20 @@ name: CICD
 
 on:
   workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #   - '*'
-  # push:
-  #   branches:
-  #   - main
+  pull_request:
+    branches:
+    - '*'
+  push:
+    branches:
+    - main
 
 jobs:
   version:
     name: "🧮 Compute the version"
     runs-on: ubuntu-latest
     outputs:
-      version: 0.8.1
-      hasNextVersion: true
+      version: ${{ steps.get_next_version.outputs.version }}
+      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -234,13 +234,97 @@ jobs:
         shell: bash
       - uses: actions/download-artifact@master
         with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-apple-darwin      
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-aarch64-apple-darwin      
+      - uses: actions/download-artifact@master
+        with:
           name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-gnu
       - uses: actions/download-artifact@master
         with:
-          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-apple-darwin
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-musl
       - uses: actions/download-artifact@master
         with:
-          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-linux-musl
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-aarch64-unknown-linux-gnu
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-aarch64-unknown-linux-musl
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-arm-unknown-linux-gnueabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-arm-unknown-linux-gnueabihf
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-arm-unknown-linux-musleabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-arm-unknown-linux-musleabihf
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv7-unknown-linux-gnueabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv7-unknown-linux-gnueabihf
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv7-unknown-linux-musleabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv7-unknown-linux-musleabihf
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-i586-unknown-linux-gnu
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-i686-unknown-linux-gnu
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-netbsd 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-unknown-freebsd 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv5te-unknown-linux-gnueabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv5te-unknown-linux-musleabi
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-arm-linux-androideabi 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-armv7-linux-androideabi 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-aarch64-linux-android 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-i686-linux-android 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-linux-android 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-thumbv7neon-linux-androideabi 
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-thumbv7neon-unknown-linux-gnueabihf
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-pc-windows-msvc
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-aarch64-pc-windows-msvc
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-i686-pc-windows-msvc
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{ steps.get_repository_name.outputs.REPOSITORY_NAME }}-x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-release
       - name: "Bump version into cargo.toml"
